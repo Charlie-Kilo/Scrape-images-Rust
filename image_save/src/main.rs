@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Extract image URLs from the JSON data and save the images locally
     extract_image_urls_from_json(&json_data)?;
     // Upload files to S3
-    let output = Command::new("C:/Users/dmc19/Rust/image_save/s3.exe").output()?;
+    let output = Command::new("s3.exe").output()?;
     println!("{}", String::from_utf8_lossy(&output.stdout));
     println!("{}", String::from_utf8_lossy(&output.stderr)); 
     Ok(())
