@@ -13,13 +13,20 @@ async fn upload_file_to_s3(bucket_name: &str, file_path: &str) -> Result<(), Box
     let http_client = HttpClient::new()?;
     let s3_client = S3Client::new_with(http_client, profile_provider, region);
 
+    // Determine the latest folder number in the S3 bucket
+    let latest_folder_number = get_latest_folder_number(bucket_name, &s3_client).await?;
+
+    // Increment the folder number for the new upload
+    let new_folder_number = latest_folder_number + 1;
+
     // Check existing files in the bucket to determine the next available filename
     let request = ListObjectsV2Request {
         bucket: bucket_name.to_owned(),
-        prefix: Some("images/".to_owned()),
+        prefix: Some(format!("images/{}", new_folder_number)),
+        delimiter: Some("/".to_string()),
         ..Default::default()
     };
-    let existing_objects = s3_client.list_objects_v2(request).await?; // Now this should work
+    let existing_objects = s3_client.list_objects_v2(request).await?; 
     let mut existing_files_count = existing_objects.contents.unwrap_or_default().len();
 
     // Iterate over each file in the directory
@@ -32,7 +39,7 @@ async fn upload_file_to_s3(bucket_name: &str, file_path: &str) -> Result<(), Box
             let mut file_content = Vec::new();
             file.read_to_end(&mut file_content)?;
             // Determine the next available filename
-            let next_filename = format!("images/image{}.jpg", existing_files_count);
+            let next_filename = format!("images/{}/image{}.jpg", new_folder_number, existing_files_count);
             // Prepare request
             let request = PutObjectRequest {
                 bucket: bucket_name.to_owned(),
@@ -66,6 +73,28 @@ fn remove_local_files() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+async fn get_latest_folder_number(bucket_name: &str, s3_client: &S3Client) -> Result<usize, Box<dyn Error>> {
+    let request = ListObjectsV2Request {
+        bucket: bucket_name.to_owned(),
+        prefix: Some("images/".to_string()),
+        delimiter: Some("/".to_string()),
+        ..Default::default()
+    };
+    let result = s3_client.list_objects_v2(request).await?;
+    let folders = result.common_prefixes.unwrap_or_default();
+
+    let mut folder_numbers: Vec<usize> = folders
+        .into_iter()
+        .filter_map(|folder| {
+            let prefix = folder.prefix?;
+            prefix.trim_end_matches('/').rsplit('/').next().and_then(|folder_name| folder_name.parse().ok())
+        })
+        .collect();
+
+    folder_numbers.sort_unstable_by(|a, b| b.cmp(a));
+
+    Ok(folder_numbers.into_iter().next().unwrap_or(0))
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
