@@ -1,10 +1,6 @@
-use std::error::Error;
-use std::fmt;
-use std::fs;
-use std::path::Path;
-use std::process::Command;
-use serde_json::Value;
+use std::{process::Command, error::Error, path::Path, fmt , fs};
 use scraper::{Selector, Html};
+use serde_json::Value;
 use warp::Filter; 
 
 #[derive(Debug)]
@@ -30,14 +26,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Define the endpoint filter to handle POST requests with JSON body
     let post_url = warp::path("url")
         .and(warp::post())
+        .and(warp::header::<String>("requestId"))
         .and(warp::body::json())
-        .and_then(|body: Value| async move {
+        .and_then(|request_id: String, body: Value| async move {
             // Extract the URL from the JSON body
             let url = body["url"].as_str().unwrap_or_default();
             // Debug print to see if the Warp server received the POST request
             println!("Received POST request with URL: {}", url);
-            // Call the main function with the received URL
-            match process_url(url).await {
+            // Call the main function with the received URL and request ID
+            match process_url(url, &request_id).await {
                 Ok(_) => Ok(warp::reply::html("Received URL successfully")),
                 Err(e) => {
                     eprintln!("Error processing URL: {}", e);
@@ -55,9 +52,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn process_url(url: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-    // Clone the URL to ensure it's owned by the closure
+
+async fn process_url(url: &str, request_id: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+    // Clone the URL and request ID to ensure they're owned by the closure
     let url = url.to_string();
+    let request_id = request_id.to_string();
     // Execute the blocking operations within a separate blocking context
     let result = tokio::task::spawn_blocking(move || -> Result<(), Box<dyn Error + Send + Sync>> {
         // Extract the auction ID based on the URL format
@@ -78,8 +77,12 @@ async fn process_url(url: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let json_data = extract_json_data(&document)?;
         // Extract image URLs from the JSON data and save the images locally
         extract_image_urls_from_json(&json_data)?;
+        // Print the request ID for debugging
+        println!("Request ID: {}", request_id);
         // Upload files to S3 using s3.exe
-        let output = Command::new("s3.exe").output()?;
+        let output = Command::new("s3.exe")
+            .args(&[&request_id]) // Pass the request ID as an argument to s3.exe
+            .output()?;
         println!("{}", String::from_utf8_lossy(&output.stdout));
         println!("{}", String::from_utf8_lossy(&output.stderr));
         Ok(())
