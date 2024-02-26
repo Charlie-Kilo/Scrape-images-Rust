@@ -1,7 +1,15 @@
-use std::{process::Command, error::Error, path::Path, fmt , fs};
+use std::{
+    error::Error,
+    process::Command,
+    path::Path,
+    fmt,
+    fs,
+    sync::Arc,
+};
 use scraper::{Selector, Html};
 use serde_json::Value;
-use warp::Filter; 
+use tokio::sync::Semaphore;
+use warp::{Filter, http::header};
 
 #[derive(Debug)]
 struct CustomError(String);
@@ -23,23 +31,36 @@ impl warp::reject::Reject for ErrorRejection {}
 async fn main() -> Result<(), Box<dyn Error>> {
     // Set your S3 bucket name
     let _bucket_name = "team-3-project-3";
+    // Define the semaphore with a limit on the maximum number of concurrent tasks
+    let semaphore = Arc::new(Semaphore::new(2)); // Adjust the limit as needed
     // Define the endpoint filter to handle POST requests with JSON body
     let post_url = warp::path("url")
         .and(warp::post())
         .and(warp::header::<String>("requestId"))
         .and(warp::body::json())
-        .and_then(|request_id: String, body: Value| async move {
-            // Extract the URL from the JSON body
-            let url = body["url"].as_str().unwrap_or_default();
-            // Debug print to see if the Warp server received the POST request
-            println!("Received POST request with URL: {}", url);
-            // Call the main function with the received URL and request ID
-            match process_url(url, &request_id).await {
-                Ok(_) => Ok(warp::reply::html("Received URL successfully")),
-                Err(e) => {
-                    eprintln!("Error processing URL: {}", e);
-                    // Define a custom rejection type to wrap errors
-                    Err(warp::reject::custom(ErrorRejection(Box::new(CustomError(format!("{}", e))))))
+        .and_then(move |request_id: String, body: Value| {
+            let semaphore = Arc::clone(&semaphore);
+            async move {
+                // Acquire a semaphore permit before processing the URL
+                let permit = semaphore.acquire().await.unwrap();
+                // Extract the URL from the JSON body
+                let url = body["url"].as_str().unwrap_or_default();
+                // Debug print to see if the Warp server received the POST request
+                println!("Received POST request with URL: {}", url);
+                // Call the main function with the received URL and request ID
+                match process_url(url, &request_id).await {
+                    Ok(_) => {
+                        // Release the semaphore permit after processing the URL
+                        drop(permit);
+                        Ok(warp::reply::html("Received URL successfully"))
+                    },
+                    Err(e) => {
+                        // Release the semaphore permit in case of error
+                        drop(permit);
+                        eprintln!("Error processing URL: {}", e);
+                        // Define a custom rejection type to wrap errors
+                        Err(warp::reject::custom(ErrorRejection(Box::new(CustomError(format!("{}", e))))))
+                    }
                 }
             }
         });
@@ -52,11 +73,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
 async fn process_url(url: &str, request_id: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clone the URL and request ID to ensure they're owned by the closure
     let url = url.to_string();
     let request_id = request_id.to_string();
+    // Create a directory for each request ID if it doesn't exist
+    let dir_path = format!("./files/{}", request_id);
+    if !Path::new(&dir_path).exists() {
+        fs::create_dir_all(&dir_path)?;
+    }
     // Execute the blocking operations within a separate blocking context
     let result = tokio::task::spawn_blocking(move || -> Result<(), Box<dyn Error + Send + Sync>> {
         // Extract the auction ID based on the URL format
@@ -76,7 +101,7 @@ async fn process_url(url: &str, request_id: &str) -> Result<(), Box<dyn Error + 
         // Extract JSON data from the HTML
         let json_data = extract_json_data(&document)?;
         // Extract image URLs from the JSON data and save the images locally
-        extract_image_urls_from_json(&json_data)?;
+        extract_image_urls_from_json(&json_data, &dir_path)?;
         // Print the request ID for debugging
         println!("Request ID: {}", request_id);
         // Upload files to S3 using s3.exe
@@ -124,12 +149,7 @@ fn extract_json_data(document: &Html) -> Result<Value, Box<dyn Error + Send + Sy
     Ok(json_data)
 }
 
-fn extract_image_urls_from_json(json_data: &Value) -> Result<(), Box<dyn Error + Send + Sync>> {
-    // Create the directory if it doesn't exist
-    let dir_path = "./files";
-    if !Path::new(dir_path).exists() {
-        fs::create_dir(dir_path)?;
-    }
+fn extract_image_urls_from_json(json_data: &Value, dir_path: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
     // Check if the JSON data contains the expected structure
     if let Some(img_array) = json_data["props"]["pageProps"]["initialState"]["itempage"]["item"]["item"]["img"].as_array() {
         // Iterate over each image object in the array

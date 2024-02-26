@@ -1,4 +1,4 @@
-use std::{error::Error, fs, io::Read, env};
+use std::{error::Error, path::PathBuf, io::Read, fs, env};
 use rusoto_core::{Region, HttpClient};
 use rusoto_credential::ProfileProvider;
 use rusoto_s3::{PutObjectRequest, S3Client, S3, ListObjectsV2Request};
@@ -15,21 +15,30 @@ async fn upload_file_to_s3(bucket_name: &str, file_path: &str, request_id: &str)
     let s3_client = S3Client::new_with(http_client, profile_provider, region);
     // Determine the latest folder number in the S3 bucket
     let latest_folder_number = get_latest_folder_number(bucket_name, &s3_client).await?;
+    println!("Latest folder number: {}", latest_folder_number);
     // Increment the folder number for the new upload
     let new_folder_number = latest_folder_number + 1;
+    println!("New folder number: {}", new_folder_number);
     // Initialize a counter for uploaded files
     let mut counter = 0;
+    // Construct the directory path with the request ID
+    let dir_path_with_request_id = format!("{}/{}", file_path, request_id);
+    println!("Directory path with request ID: {}", dir_path_with_request_id);
     // Iterate over each file in the directory
-    for entry in fs::read_dir(file_path)? {
+    for entry in fs::read_dir(&dir_path_with_request_id)? {
         let entry = entry?;
         let path = entry.path();
+        println!("Processing file: {:?}", path);
         if path.is_file() {
+            // Print the local file path being uploaded from
+            println!("Uploading file from: {:?}", path);
             // Read file content
             let mut file = std::fs::File::open(&path)?;
             let mut file_content = Vec::new();
             file.read_to_end(&mut file_content)?;
             // Determine the next available filename using the counter
             let next_filename = format!("images/{}/image{}.jpg", new_folder_number, counter);
+            println!("Next filename: {}", next_filename);
             // Prepare request
             let request = PutObjectRequest {
                 bucket: bucket_name.to_owned(),
@@ -48,13 +57,18 @@ async fn upload_file_to_s3(bucket_name: &str, file_path: &str, request_id: &str)
 }
 
 // Function to remove local files after uploading to S3
-fn remove_local_files() -> Result<(), Box<dyn Error>> {
-    let dir_path = "./files";
-    let paths = fs::read_dir(dir_path)?;
+fn remove_local_files(request_id: &str) -> Result<(), Box<dyn Error>> {
+    let dir_path = PathBuf::from(format!("./files/{}", request_id));
+    println!("Removing local files from directory: {:?}", dir_path);
+    let paths = fs::read_dir(&dir_path)?;
     for path in paths {
         let file_path = path?.path();
-        fs::remove_file(&file_path)?;
-        println!("Removed local file: {:?}", file_path);
+        println!("Removing local file: {:?}", file_path);
+        if let Err(err) = fs::remove_file(&file_path) {
+            println!("Error removing local file: {:?}", err);
+        } else {
+            println!("Removed local file: {:?}", file_path);
+        }
     }
     Ok(())
 }
@@ -130,6 +144,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let last_folder_number = get_latest_folder_number(bucket_name, &s3_client).await?;
     send_file_path_to_api_gateway(bucket_name, last_folder_number, counter-1, request_id).await?;
     // Remove local files after uploading to S3
-    remove_local_files()?;
+    remove_local_files(request_id)?;
     Ok(())
 }
