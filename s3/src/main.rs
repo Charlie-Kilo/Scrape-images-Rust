@@ -4,22 +4,18 @@ use rusoto_credential::ProfileProvider;
 use rusoto_s3::{PutObjectRequest, S3Client, S3, ListObjectsV2Request};
 use reqwest::Client;
 
-async fn upload_file_to_s3(bucket_name: &str, file_path: &str) -> Result<(), Box<dyn Error>> {
+async fn upload_file_to_s3(bucket_name: &str, file_path: &str) -> Result<usize, Box<dyn Error>> {
     // Initialize AWS credentials from profile
     let profile_provider = ProfileProvider::new()?;
     let region = Region::default();
     let http_client = HttpClient::new()?;
     let s3_client = S3Client::new_with(http_client, profile_provider, region);
-
     // Determine the latest folder number in the S3 bucket
     let latest_folder_number = get_latest_folder_number(bucket_name, &s3_client).await?;
-
     // Increment the folder number for the new upload
     let new_folder_number = latest_folder_number + 1;
-
     // Initialize a counter for uploaded files
     let mut counter = 0;
-
     // Iterate over each file in the directory
     for entry in fs::read_dir(file_path)? {
         let entry = entry?;
@@ -29,10 +25,8 @@ async fn upload_file_to_s3(bucket_name: &str, file_path: &str) -> Result<(), Box
             let mut file = std::fs::File::open(&path)?;
             let mut file_content = Vec::new();
             file.read_to_end(&mut file_content)?;
-
             // Determine the next available filename using the counter
             let next_filename = format!("images/{}/image{}.jpg", new_folder_number, counter);
-
             // Prepare request
             let request = PutObjectRequest {
                 bucket: bucket_name.to_owned(),
@@ -40,17 +34,14 @@ async fn upload_file_to_s3(bucket_name: &str, file_path: &str) -> Result<(), Box
                 body: Some(file_content.into()),
                 ..Default::default()
             };
-
             // Upload file to S3
             let _response = s3_client.put_object(request).await?;
             println!("File uploaded successfully: {}", next_filename);
-
             // Increment the counter
             counter += 1;
         }
     }
-
-    Ok(())
+    Ok(counter) // Return the counter value
 }
 
 // Function to remove local files after uploading to S3
@@ -82,19 +73,15 @@ async fn get_latest_folder_number(bucket_name: &str, s3_client: &S3Client) -> Re
             prefix.trim_end_matches('/').rsplit('/').next().and_then(|folder_name| folder_name.parse().ok())
         })
         .collect();
-
     folder_numbers.sort_unstable_by(|a, b| b.cmp(a));
-
     Ok(folder_numbers.into_iter().next().unwrap_or(0))
 }
 
 async fn send_file_path_to_api_gateway(bucket_name: &str, new_folder_number: usize, counter: usize) -> Result<(), Box<dyn Error>> {
     // Construct the URL of your API gateway
     let api_url = "http://localhost:3031/path"; // Change this URL to match your API endpoint
-
     // Construct the file name using the counter
     let final_image_path = format!("s3://{}/images/{}/image{}.jpg", bucket_name, new_folder_number, counter);
-
     // Create a reqwest Client instance
     let client = reqwest::Client::new();
     // Create a JSON object with the file path
@@ -112,16 +99,16 @@ async fn send_file_path_to_api_gateway(bucket_name: &str, new_folder_number: usi
     } else {
         println!("Failed to send file path to API gateway: {}", response.status());
     }
-
     Ok(())
 }
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let bucket_name = "team-3-project-3";
     let directory_path = "files";
-    // Upload files to S3
-    upload_file_to_s3(bucket_name, directory_path).await?;
+    // Upload files to S3 and get the counter value
+    let counter = upload_file_to_s3(bucket_name, directory_path).await?;
     // Get the latest folder number in the S3 bucket
     let profile_provider = ProfileProvider::new()?;
     let region = Region::default();
@@ -129,7 +116,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let s3_client = S3Client::new_with(http_client, profile_provider, region);
     let last_folder_number = get_latest_folder_number(bucket_name, &s3_client).await?;
     // Call send_file_path_to_api_gateway with the latest folder number and the counter
-    send_file_path_to_api_gateway(bucket_name, last_folder_number, 0).await?;
+    send_file_path_to_api_gateway(bucket_name, last_folder_number, counter-1).await?;
     // Remove local files after uploading to S3
     remove_local_files()?;
     Ok(())
