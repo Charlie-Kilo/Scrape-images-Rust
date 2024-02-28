@@ -1,0 +1,11 @@
+C:\Users\DanteClark\source\repos\Scrape-images-Rust\image_save\target\debug\deps\libgcore-7b0699c0e8c379d7.rmeta: C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\lib.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\errors.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\exec.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\msg.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\prog.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\general.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\utils.rs
+
+C:\Users\DanteClark\source\repos\Scrape-images-Rust\image_save\target\debug\deps\gcore-7b0699c0e8c379d7.d: C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\lib.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\errors.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\exec.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\msg.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\prog.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\general.rs C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\utils.rs
+
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\lib.rs:
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\errors.rs:
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\exec.rs:
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\msg.rs:
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\prog.rs:
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\general.rs:
+C:\Users\DanteClark\.cargo\registry\src\index.crates.io-6f17d22bba15001f\gcore-1.1.1\src\utils.rs:

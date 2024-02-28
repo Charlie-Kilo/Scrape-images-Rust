@@ -1,6 +1,6 @@
-C:\Users\dmc19\rust-git\image_save\target\debug\build\proc-macro2-4b6173a56e0a724a\out\libproc_macro2.rmeta: build\probe.rs
+C:\Users\DanteClark\source\repos\Scrape-images-Rust\image_save\target\debug\build\proc-macro2-4b6173a56e0a724a\out\libproc_macro2.rmeta: build\probe.rs
 
-C:\Users\dmc19\rust-git\image_save\target\debug\build\proc-macro2-4b6173a56e0a724a\out\proc_macro2.d: build\probe.rs
+C:\Users\DanteClark\source\repos\Scrape-images-Rust\image_save\target\debug\build\proc-macro2-4b6173a56e0a724a\out\proc_macro2.d: build\probe.rs
 
 build\probe.rs:
 

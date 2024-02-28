@@ -102,18 +102,22 @@ async fn process_url(url: &str, request_id: &str) -> Result<(), Box<dyn Error + 
         let json_data = extract_json_data(&document)?;
         // Extract image URLs from the JSON data and save the images locally
         extract_image_urls_from_json(&json_data, &dir_path)?;
-        // Print the request ID for debugging
+        // Print the request ID and URL for debugging
         println!("Request ID: {}", request_id);
+        println!("URL: {}", url);
         // Upload files to S3 using s3.exe
         let output = Command::new("s3.exe")
             .args(&[&request_id]) // Pass the request ID as an argument to s3.exe
             .output()?;
         println!("{}", String::from_utf8_lossy(&output.stdout));
         println!("{}", String::from_utf8_lossy(&output.stderr));
+        // Debugging line to print success response with URL
+        println!("Success response sent to API Gateway for request ID {} with URL {}", request_id, url);
         Ok(())
     }).await;
     result?
 }
+
 
 // Function to extract auction ID from URL containing "fromjapan.co"
 fn extract_auction_id_from_fromjapan(url: &str) -> Result<&str, &'static str> {
